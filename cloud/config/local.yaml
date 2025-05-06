@@ -1,0 +1,12 @@
+address: ":8080"
+dsn: "postgres://postgres:2198@localhost:5432/data?sslmode=disable"
+
+backends:
+  - "http://localhost:8081"
+  - "http://localhost:8082"
+  - "http://localhost:8083"
+
+health_check_interval: "10s"
+
+rate_limit_capacity: 10
+rate_limit_rate: 1

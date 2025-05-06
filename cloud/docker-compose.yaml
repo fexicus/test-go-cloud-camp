@@ -1,0 +1,62 @@
+version: "3.8"
+
+networks:
+  app-net:
+    driver: bridge
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: data
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 2198
+    container_name: "db-postgres"
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-net
+
+  backend1:
+    image: hashicorp/http-echo:latest
+    command: ["-text=BACKEND-1", "-listen=:8081", "-health=/health"]
+    ports: ["8081:8081"]
+    networks: [app-net]
+    depends_on: [db]
+
+  backend2:
+    image: hashicorp/http-echo:latest
+    command: ["-text=BACKEND-2", "-listen=:8082", "-health=/health"]
+    ports: ["8082:8082"]
+    networks: [app-net]
+    depends_on: [db]
+
+  backend3:
+    image: hashicorp/http-echo:latest
+    command: ["-text=BACKEND-3", "-listen=:8083", "-health=/health"]
+    ports: ["8083:8083"]
+    networks: [app-net]
+    depends_on: [db]
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["./pickpoint"]
+    ports: ["8080:8080"]
+    environment:
+      CONFIG_PATH:           "/config/local.yaml"
+      DB_DSN:                "postgres://postgres:2198@db:5432/data?sslmode=disable"
+      BACKENDS:              "http://backend1:8081,http://backend2:8082,http://backend3:8083"
+      HEALTH_CHECK_INTERVAL: "10s"
+      RATE_LIMIT_CAPACITY:    "10"
+      RATE_LIMIT_RATE:        "1"
+    volumes:
+      - ./config/local.yaml:/config/local.yaml:ro
+    networks: [app-net]
+    depends_on: [db, backend1, backend2, backend3]
